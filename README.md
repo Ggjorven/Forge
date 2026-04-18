@@ -29,10 +29,8 @@ The goal is to explore what a language looks and feels like when you cherry-pick
 
 ```
 git clone https://github.com/Ggjorven/Forge.git
-cd Forge
-cargo build --release
-
-cargo run -- path/to/file.fg
+cd Forge/Forge
+cargo run
 ```
 
 ## Syntax
