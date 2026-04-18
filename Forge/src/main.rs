@@ -1,8 +1,10 @@
+use std::fs;
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CliOption 
 {
     Value(String),
@@ -10,7 +12,7 @@ pub enum CliOption
     Option(String, String)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CompilerOptions
 {
     pub files: Vec<PathBuf>,
@@ -77,7 +79,7 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> CompilerOptions
         output: Path::new("output").with_extension(get_os_executable_extension())
     };
 
-    for option in cli_options
+    for option in &cli_options
     {
         match option
         {
@@ -106,10 +108,132 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> CompilerOptions
     return options;
 }
 
-fn main() 
+#[derive(Debug, Clone, PartialEq)] // PartialEq just checks the Kind and not the internal type
+pub enum TokenType
+{
+    // Literals
+    Int(i64),       // FUTURE TODO: unsigned and different sizes
+    Float(f64),     // FUTURE TODO: different sizes
+    String(String),
+
+    // Keywords
+    Let,
+    Return,
+    True,
+    False,
+
+    // Identifiers
+    Identifier(String),
+
+    // Punctuation
+    LeftParenthesis, RightParenthesis,  // ( )
+    LeftBrace, RightBrace,              // { }
+    Colon,                              // :
+    Semicolon,                          // ;
+    Comma,                              // ,
+    Equals,                             // =
+    Arrow,                              // ->
+    
+    // Operators
+    Plus, Minus, Star, Slash,   // +, -, *, /
+    PlusPlus, MinusMinus,       // ++, --
+
+    EqualsEquals, NotEquals,                // ==, !=
+    LessThan, GreaterThan,                  // <, >
+    LessThanOrEquals, GreaterThanOrEquals,  // <=, >=
+    MinusEquals, PlusEquals                 // -=, +=
+}
+
+#[derive(Debug)]
+pub struct Token
+{
+    token_type: TokenType,
+    
+    // Debug
+    line: u32
+}
+
+pub struct Lexer
+{
+    source: Vec<char>,
+
+    current_char: usize,
+    current_line: u32
+}
+
+impl Lexer
+{
+    pub fn new(file: &Path) -> Result<Self, std::io::Error>
+    {
+        let source = fs::read_to_string(file);
+
+        match source 
+        {
+            Ok(string) => {
+                return Ok(Self {
+                    source: string.chars().collect(),
+
+                    current_char: 0,
+                    current_line: 0
+                });
+            }
+            Err(error) =>
+            {
+                return Err(error);
+            }
+        }
+    }
+
+    pub fn get_tokens(mut self) -> Vec<Token>
+    {
+        let mut tokens = Vec::new();
+
+        //while !self.is_at_end() 
+        //{
+        //    self.skip_whitespace();
+        //    if self.is_at_end() 
+        //    {
+        //        break;
+        //    }
+//
+        //    if let Some(token) = self.next_token() {
+        //        tokens.push(token);
+        //    }
+        //}
+
+        return tokens;
+    }
+}
+
+pub fn main() -> ExitCode
 {
     let options = parse_cli_arguments(env::args().collect());
     let compiler_options = parse_cli_options(options);
 
+    for file in &compiler_options.files
+    {
+        let lexer = Lexer::new(file.as_path());
+
+        match lexer
+        {
+            Ok(lexer) =>
+            {
+                let tokens = lexer.get_tokens();
+
+                for token in &tokens
+                {
+                    println!("Token: {:?}", token);
+                }
+            }
+            Err(error) =>
+            {
+                eprintln!("Failed to lex '{:?}' with IO error: {:?}", &file, error);
+                return ExitCode::FAILURE;
+            }
+        }
+    }
+
     println!("Options: {:?}", compiler_options);
+
+    return ExitCode::SUCCESS;
 }
