@@ -4,6 +4,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+/////////////////////////////////////////////////////
+// CliOption
+/////////////////////////////////////////////////////
 #[derive(Debug, Clone)]
 pub enum CliOption 
 {
@@ -12,6 +15,9 @@ pub enum CliOption
     Option(String, String)
 }
 
+/////////////////////////////////////////////////////
+// CompilerOptions
+/////////////////////////////////////////////////////
 #[derive(Debug, Clone)]
 pub struct CompilerOptions
 {
@@ -19,6 +25,9 @@ pub struct CompilerOptions
     pub output: PathBuf
 }
 
+/////////////////////////////////////////////////////
+// Parse functions
+/////////////////////////////////////////////////////
 // Types it can handle
 // Value: value
 // Flag: -flag
@@ -67,9 +76,9 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> CompilerOptions
     { 
         match std::env::consts::OS
         {
-            "windows" => PathBuf::from(".exe"),
+            // "windows" => PathBuf::from(".exe"),
             "linux" => PathBuf::from(""),
-            "macos" => PathBuf::from(""),
+            // "macos" => PathBuf::from(""),
             _ => panic!("Unsupported compilation platform.")
         }
     };
@@ -108,6 +117,9 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> CompilerOptions
     return options;
 }
 
+/////////////////////////////////////////////////////
+// TokenType
+/////////////////////////////////////////////////////
 #[derive(Debug, Clone, PartialEq)] // PartialEq just checks the Kind and not the internal type
 pub enum TokenType
 {
@@ -131,19 +143,24 @@ pub enum TokenType
     Colon,                              // :
     Semicolon,                          // ;
     Comma,                              // ,
+    Dot,                                // .
     Equals,                             // =
     Arrow,                              // ->
     
     // Operators
-    Plus, Minus, Star, Slash,   // +, -, *, /
-    PlusPlus, MinusMinus,       // ++, --
+    Plus, Minus, Star, Slash,                           // +, -, *, /
+    PlusEquals, MinusEquals, StarEquals, SlashEquals,   // +=, -=, *=, /=
+    PlusPlus, MinusMinus,                               // ++, --
 
     EqualsEquals, NotEquals,                // ==, !=
+
     LessThan, GreaterThan,                  // <, >
     LessThanOrEquals, GreaterThanOrEquals,  // <=, >=
-    MinusEquals, PlusEquals                 // -=, +=
 }
 
+/////////////////////////////////////////////////////
+// Token
+/////////////////////////////////////////////////////
 #[derive(Debug)]
 pub struct Token
 {
@@ -153,6 +170,9 @@ pub struct Token
     line: u32
 }
 
+/////////////////////////////////////////////////////
+// Lexer
+/////////////////////////////////////////////////////
 pub struct Lexer
 {
     source: Vec<char>,
@@ -163,6 +183,9 @@ pub struct Lexer
 
 impl Lexer
 {
+    /////////////////////////////////////////////////////
+    // Public functions
+    /////////////////////////////////////////////////////
     pub fn new(file: &Path) -> Result<Self, std::io::Error>
     {
         let source = fs::read_to_string(file);
@@ -188,23 +211,298 @@ impl Lexer
     {
         let mut tokens = Vec::new();
 
-        //while !self.is_at_end() 
-        //{
-        //    self.skip_whitespace();
-        //    if self.is_at_end() 
-        //    {
-        //        break;
-        //    }
-//
-        //    if let Some(token) = self.next_token() {
-        //        tokens.push(token);
-        //    }
-        //}
+        while !self.is_at_end(None) 
+        {
+            self.skip_whitespace();
+            if self.is_at_end(None) {
+                break;
+            }
+
+            if let Some(token) = self.next_token() {
+                tokens.push(token);
+            }
+        }
 
         return tokens;
     }
+
+    /////////////////////////////////////////////////////
+    // Private functions
+    /////////////////////////////////////////////////////
+    fn is_at_end(&self, char_to_check_or_current_char: Option<usize>) -> bool
+    {
+        let c: usize = char_to_check_or_current_char.unwrap_or(self.current_char);
+        return c >= self.source.len();
+    }
+
+    fn skip_whitespace(&mut self)
+    {
+        let next_character = self.peek(None);
+
+        if let Some(char) = next_character
+        {
+            if char == ' '
+            {
+                self.consume();
+                self.skip_whitespace();
+            }
+            else if char == '\n' || char == '\r'
+            {
+                self.current_line += 1;
+                self.consume();
+                self.skip_whitespace();
+            }
+            // else return;
+        }
+    }
+
+    fn peek(&self, offset: Option<usize>) -> Option<char>
+    {
+        let index: usize = self.current_char + offset.unwrap_or(0);
+        // return self.source.get(index).copied();
+
+        if self.is_at_end(Some(index)) {
+            return None;
+        }
+
+        return Some(self.source[index]); // No need to clone, since char is a Copy type.
+    }
+
+    fn consume(&mut self) -> char
+    {
+        let c = self.source[self.current_char]; // No need to clone, since char is a Copy type.
+        self.current_char += 1;
+        return c;
+    }
+
+    fn next_token(&mut self) -> Option<Token>
+    {
+        let c = self.consume();
+
+        let token_type: TokenType;
+        match c 
+        {
+            // Literals
+            c if c.is_ascii_digit() => token_type = self.lex_number(c),
+            '"' => token_type = self.lex_string(),
+
+            // Keywords & identifiers
+            c if c.is_alphabetic() || c == '_' => token_type = self.lex_ident_or_keyword(c),
+
+            // Punctuation
+            '(' => token_type = TokenType::LeftParenthesis,
+            ')' => token_type = TokenType::RightParenthesis,
+            '{' => token_type = TokenType::LeftBrace,
+            '}' => token_type = TokenType::RightBrace,
+            ':' => token_type = TokenType::Colon,
+            ';' => token_type = TokenType::Semicolon,
+            ',' => token_type = TokenType::Comma,
+            '.' => token_type = TokenType::Dot,
+            
+            // Punctuation + Operators mix
+            '-' =>
+            {
+                let next_char = self.peek(Some(1));
+
+                if next_char == Some('>') 
+                {
+                    self.consume();
+                    token_type = TokenType::Arrow;
+                }
+                else if next_char == Some('-')
+                {
+                    self.consume();
+                    token_type = TokenType::MinusMinus;
+                }
+                else if next_char == Some('=')
+                {
+                    self.consume();
+                    token_type = TokenType::MinusEquals;
+                }
+                else {
+                    token_type = TokenType::Minus;
+                }
+            },
+            '=' => 
+            {
+                if self.peek(Some(1)) == Some('=') 
+                {
+                    self.consume();
+                    token_type = TokenType::EqualsEquals;
+                }
+                else {
+                    token_type = TokenType::Equals;
+                }
+            },
+            
+            // Operators
+            '+' => 
+            {
+                let next_char = self.peek(Some(1));
+
+                if next_char == Some('=') 
+                {
+                    self.consume();
+                    token_type = TokenType::PlusEquals;
+                }
+                else if next_char == Some('+')
+                {
+                    self.consume();
+                    token_type = TokenType::PlusPlus;
+                }
+                else {
+                    token_type = TokenType::Plus;
+                }
+            },
+            '*' => 
+            {
+                if self.peek(Some(1)) == Some('=') 
+                {
+                    self.consume();
+                    token_type = TokenType::StarEquals;
+                }
+                else {
+                    token_type = TokenType::Star;
+                }
+            },
+            '/' => 
+            {
+                if self.peek(Some(1)) == Some('=') 
+                {
+                    self.consume();
+                    token_type = TokenType::SlashEquals;
+                }
+                else {
+                    token_type = TokenType::Slash;
+                }
+            },
+
+            '!' => 
+            {
+                if self.peek(Some(1)) == Some('=') 
+                {
+                    self.consume();
+                    token_type = TokenType::NotEquals;
+                }
+                else 
+                {
+                    eprintln!("Invalid token found on line {}, '!'.", self.current_line);
+                    return None;
+                }
+            },
+
+            '<' => 
+            {
+                if self.peek(Some(1)) == Some('=') 
+                {
+                    self.consume();
+                    token_type = TokenType::LessThanOrEquals;
+                }
+                else {
+                    token_type = TokenType::LessThan;
+                }
+            },
+            '>' => 
+            {
+                if self.peek(Some(1)) == Some('=') 
+                {
+                    self.consume();
+                    token_type = TokenType::GreaterThanOrEquals;
+                }
+                else {
+                    token_type = TokenType::GreaterThan;
+                }
+            },
+
+            _ => return None
+        }
+
+        return Some(self.make_token(token_type));
+    }
+
+    fn lex_number(&mut self, start_char: char) -> TokenType
+    {
+        let mut num = String::from(start_char);
+        let mut is_float = false;
+
+        while let Some(c) = self.peek(None) 
+        {
+            if c.is_ascii_digit() 
+            {
+                num.push(c);
+                self.consume();
+            } 
+            else if c == '.' && !is_float {
+                is_float = true;
+                num.push(c);
+                self.consume();
+            } else {
+                break;
+            }
+        }
+
+        if is_float {
+            return TokenType::Float(num.parse().unwrap());
+        } 
+
+        return TokenType::Int(num.parse().unwrap());
+    }
+
+    fn lex_string(&mut self) -> TokenType
+    {
+        let mut string = String::new();
+
+        while let Some(c) = self.peek(None) 
+        {
+            if c == '"' 
+            { 
+                self.consume(); 
+                break; 
+            }
+
+            string.push(c);
+            self.consume();
+        }
+
+        return TokenType::String(string);
+    }
+
+    fn lex_ident_or_keyword(&mut self, start_char: char) -> TokenType
+    {
+        let mut identifier = String::from(start_char);
+
+        while let Some(c) = self.peek(None) 
+        {
+            if c.is_alphanumeric() || c == '_' 
+            {
+                identifier.push(c);
+                self.consume();
+            } 
+            else {
+                break;
+            }
+        }
+
+        // Keywords — match the string, fall back to Ident
+        match identifier.as_str() 
+        {
+            "let"    => return TokenType::Let,
+            "return" => return TokenType::Return,
+            "true"   => return TokenType::True,
+            "false"  => return TokenType::False,
+            _        => return TokenType::Identifier(identifier),
+        }
+    }
+
+    fn make_token(&self, token_type: TokenType) -> Token 
+    {
+        Token { token_type: token_type, line: self.current_line }
+    }
 }
 
+/////////////////////////////////////////////////////
+// Main function
+/////////////////////////////////////////////////////
 pub fn main() -> ExitCode
 {
     let options = parse_cli_arguments(env::args().collect());
@@ -222,7 +520,7 @@ pub fn main() -> ExitCode
 
                 for token in &tokens
                 {
-                    println!("Token: {:?}", token);
+                    println!("[Token] Type: {:?}, Line: {}", token.token_type, token.line);
                 }
             }
             Err(error) =>
