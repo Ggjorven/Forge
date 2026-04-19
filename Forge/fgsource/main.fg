@@ -1,4 +1,9 @@
 int32 main()
 {
     ;
+    'a'
+    '\\'
+    '\c'
+    "abc"
+    "abc\"def"
 }
