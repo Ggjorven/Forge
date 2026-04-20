@@ -96,7 +96,7 @@ impl Lexer
 
         if let Some(char) = next_character
         {
-            if char == ' '
+            if char == ' ' || char == '\t'
             {
                 self.consume();
                 self.skip_whitespace();
@@ -158,8 +158,6 @@ impl Lexer
             // Literals
             '"' => 
             {
-                self.consume();
-
                 let result = self.lex_string();
             
                 match result
@@ -170,16 +168,14 @@ impl Lexer
             }
             '\'' => 
             {
-                self.consume();
-
-                let result = self.lex_char();
+                     let result = self.lex_char();
             
                 match result
                 {
                     Ok(token_type) => return Ok(Some(self.make_token(token_type))),
                     Err(error) => return Err(error)
                 }
-            } // token_type = self.lex_string(),
+            }
 
             // Punctuation
             '(' => return Ok(Some(self.make_token(TokenType::LeftParenthesis))),
@@ -388,10 +384,9 @@ impl Lexer
                 self.consume(); // consume backslash
                 self.parse_escape_sequence()?
             }
-            Some(c) =>
+            Some(_c) =>
             {
-                self.consume();
-                c
+                self.consume()
             }
         };
 
