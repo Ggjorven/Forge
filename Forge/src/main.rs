@@ -13,12 +13,21 @@ pub fn main() -> ExitCode
 
     for file in &compiler_options.files
     {
-        let lexerObj = lexer::Lexer::new(file.as_path());
-        let tokens = lexerObj.get_tokens();
+        let lexer_result = lexer::Lexer::new(file.as_path());
 
-        for token in &tokens
+        if let Err(error) = lexer_result
         {
-            println!("Token: {:?}", token);
+            eprintln!("Failed to create lexer with error: {:?}", error);
+            continue;
+        }
+        else if let Ok(lexer_obj) = lexer_result
+        {
+            let tokens = lexer_obj.get_tokens();
+
+            for token in &tokens
+            {
+                println!("Token: {:?}", token);
+            }
         }
     }
 

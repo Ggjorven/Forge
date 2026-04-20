@@ -1,6 +1,5 @@
 use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
 
 use super::token::Token;
 use super::token::TokenType;
@@ -8,10 +7,12 @@ use super::token::TokenType;
 /////////////////////////////////////////////////////
 // Helpers
 /////////////////////////////////////////////////////
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LexError
 {
-    InvalidSyntax
+    IOError(String),
+    CharacterParseError(String),
+    StringParseError(String)
 }
 
 /////////////////////////////////////////////////////
@@ -30,9 +31,9 @@ impl Lexer
     /////////////////////////////////////////////////////
     // Public functions
     /////////////////////////////////////////////////////
-    pub fn new(file: &Path) -> Result<Self, std::io::Error>
+    pub fn new(file: &Path) -> Result<Self, LexError>
     {
-        let source = fs::read_to_string(file);
+        let source: Result<String, std::io::Error> = fs::read_to_string(file);
 
         match source 
         {
@@ -46,14 +47,14 @@ impl Lexer
             }
             Err(error) =>
             {
-                return Err(error);
+                return Err(LexError::IOError(std::fmt::format(format_args!("Failed to open file '{}'. \nError: {:?}", file.to_str().unwrap_or(""), error.kind()))));
             }
         }
     }
 
     pub fn get_tokens(mut self) -> Vec<Token>
     {
-        let mut tokens = Vec::new();
+        let mut tokens: Vec<Token> = Vec::new();
 
         while !self.is_at_end(None) 
         {
@@ -62,8 +63,16 @@ impl Lexer
                 break;
             }
 
-            if let Some(token) = self.next_token() {
-                tokens.push(token);
+            let next = self.next_token();
+            if let Ok(op_token) = next 
+            {
+                if let Some(token) = op_token
+                {
+                    tokens.push(token);
+                }
+            } 
+            else if let Err(error) = next {
+                eprintln!("Failed to parse token with error: {:?}", error);
             }
         }
 
@@ -119,7 +128,9 @@ impl Lexer
         return c;
     }
 
-    fn next_token(&mut self) -> Option<Token>
+    ////////////////////////////////////////////////////////////// CHANGE BELOW THIS /////////////////////////////////////////////////////////////
+
+    fn next_token(&mut self) -> Result<Option<Token>, LexError>
     {
         let c = self.consume();
 
@@ -242,7 +253,7 @@ impl Lexer
                 else 
                 {
                     eprintln!("Invalid token found on line {}, '!'.", self.current_line);
-                    return None;
+                    return Ok(None);
                 }
             },
 
@@ -269,10 +280,10 @@ impl Lexer
                 }
             },
 
-            _ => return None
+            _ => return Ok(None)
         }
 
-        return Some(self.make_token(token_type));
+        return Ok(Some(self.make_token(token_type)));
     }
 
     fn lex_number(&mut self, start_char: char) -> Result<TokenType, LexError>
