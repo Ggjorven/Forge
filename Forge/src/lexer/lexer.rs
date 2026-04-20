@@ -12,7 +12,9 @@ pub enum LexError
 {
     IOError(String),
     CharacterParseError(String),
-    StringParseError(String)
+    StringParseError(String),
+    IntegerParseError(String),
+    FloatParseError(String)
 }
 
 /////////////////////////////////////////////////////
@@ -42,12 +44,12 @@ impl Lexer
                     source: string.chars().collect(),
 
                     current_char: 0,
-                    current_line: 0
+                    current_line: 1
                 });
             }
             Err(error) =>
             {
-                return Err(LexError::IOError(std::fmt::format(format_args!("Failed to open file '{}'. \nError: {:?}", file.to_str().unwrap_or(""), error.kind()))));
+                return Err(LexError::IOError(format!("Failed to open file '{}'. \nError: {:?}", file.to_str().unwrap_or(""), error.kind())));
             }
         }
     }
@@ -128,42 +130,66 @@ impl Lexer
         return c;
     }
 
-    ////////////////////////////////////////////////////////////// CHANGE BELOW THIS /////////////////////////////////////////////////////////////
-
     fn next_token(&mut self) -> Result<Option<Token>, LexError>
     {
         let c = self.consume();
 
-        let token_type: TokenType;
+        // Literals (number)
+        if c.is_ascii_digit()
+        {
+            let result = self.lex_number(c);
+            
+            match result
+            {
+                Ok(token_type) => return Ok(Some(self.make_token(token_type))),
+                Err(error) => return Err(error)
+            }
+        }
+
+        // Keywords & identifiers
+        if c.is_alphabetic() || c == '_' 
+        {
+            let result_type = self.lex_ident_or_keyword(c);
+            return Ok(Some(self.make_token(result_type)));
+        }
+
         match c 
         {
             // Literals
-            c if c.is_ascii_digit() => token_type = self.lex_number(c),
-            '"' => token_type = self.lex_string(),
+            '"' => 
+            {
+                self.consume();
+
+                let result = self.lex_string();
+            
+                match result
+                {
+                    Ok(token_type) => return Ok(Some(self.make_token(token_type))),
+                    Err(error) => return Err(error)
+                }
+            }
             '\'' => 
             {
                 self.consume();
 
-                if let Some(character) = self.peek(None)
+                let result = self.lex_char();
+            
+                match result
                 {
+                    Ok(token_type) => return Ok(Some(self.make_token(token_type))),
+                    Err(error) => return Err(error)
                 }
-
-                token_type = TokenType::CharLiteral(self.consume());
-                self.consume();
             } // token_type = self.lex_string(),
 
-            // Keywords & identifiers
-            c if c.is_alphabetic() || c == '_' => token_type = self.lex_ident_or_keyword(c),
-
             // Punctuation
-            '(' => token_type = TokenType::LeftParenthesis,
-            ')' => token_type = TokenType::RightParenthesis,
-            '{' => token_type = TokenType::LeftBrace,
-            '}' => token_type = TokenType::RightBrace,
-            ':' => token_type = TokenType::Colon,
-            ';' => token_type = TokenType::Semicolon,
-            ',' => token_type = TokenType::Comma,
-            '.' => token_type = TokenType::Dot,
+            '(' => return Ok(Some(self.make_token(TokenType::LeftParenthesis))),
+            ')' => return Ok(Some(self.make_token(TokenType::RightParenthesis))),
+            '{' => return Ok(Some(self.make_token(TokenType::LeftBrace))),
+            '}' => return Ok(Some(self.make_token(TokenType::RightBrace))),
+            ':' => return Ok(Some(self.make_token(TokenType::Colon))),
+            ';' => return Ok(Some(self.make_token(TokenType::Semicolon))),
+            ',' => return Ok(Some(self.make_token(TokenType::Comma))),
+            '.' => return Ok(Some(self.make_token(TokenType::Dot))),
             
             // Punctuation + Operators mix
             '-' =>
@@ -173,20 +199,20 @@ impl Lexer
                 if next_char == Some('>') 
                 {
                     self.consume();
-                    token_type = TokenType::Arrow;
+                    return Ok(Some(self.make_token(TokenType::Arrow)));
                 }
                 else if next_char == Some('-')
                 {
                     self.consume();
-                    token_type = TokenType::MinusMinus;
+                    return Ok(Some(self.make_token(TokenType::MinusMinus)));
                 }
                 else if next_char == Some('=')
                 {
                     self.consume();
-                    token_type = TokenType::MinusEquals;
+                    return Ok(Some(self.make_token(TokenType::MinusEquals)));
                 }
                 else {
-                    token_type = TokenType::Minus;
+                    return Ok(Some(self.make_token(TokenType::Minus)));
                 }
             },
             '=' => 
@@ -194,10 +220,10 @@ impl Lexer
                 if self.peek(None) == Some('=') 
                 {
                     self.consume();
-                    token_type = TokenType::EqualsEquals;
+                    return Ok(Some(self.make_token(TokenType::EqualsEquals)));
                 }
                 else {
-                    token_type = TokenType::Equals;
+                    return Ok(Some(self.make_token(TokenType::Equals)));
                 }
             },
             
@@ -209,15 +235,15 @@ impl Lexer
                 if next_char == Some('=') 
                 {
                     self.consume();
-                    token_type = TokenType::PlusEquals;
+                    return Ok(Some(self.make_token(TokenType::PlusEquals)));
                 }
                 else if next_char == Some('+')
                 {
                     self.consume();
-                    token_type = TokenType::PlusPlus;
+                    return Ok(Some(self.make_token(TokenType::PlusPlus)));
                 }
                 else {
-                    token_type = TokenType::Plus;
+                    return Ok(Some(self.make_token(TokenType::Plus)));
                 }
             },
             '*' => 
@@ -225,10 +251,10 @@ impl Lexer
                 if self.peek(None) == Some('=') 
                 {
                     self.consume();
-                    token_type = TokenType::StarEquals;
+                    return Ok(Some(self.make_token(TokenType::StarEquals)));
                 }
                 else {
-                    token_type = TokenType::Star;
+                    return Ok(Some(self.make_token(TokenType::Star)));
                 }
             },
             '/' => 
@@ -236,10 +262,10 @@ impl Lexer
                 if self.peek(None) == Some('=') 
                 {
                     self.consume();
-                    token_type = TokenType::SlashEquals;
+                    return Ok(Some(self.make_token(TokenType::SlashEquals)));
                 }
                 else {
-                    token_type = TokenType::Slash;
+                    return Ok(Some(self.make_token(TokenType::Slash)));
                 }
             },
 
@@ -248,7 +274,7 @@ impl Lexer
                 if self.peek(None) == Some('=') 
                 {
                     self.consume();
-                    token_type = TokenType::NotEquals;
+                    return Ok(Some(self.make_token(TokenType::NotEquals)));
                 }
                 else 
                 {
@@ -262,10 +288,10 @@ impl Lexer
                 if self.peek(None) == Some('=') 
                 {
                     self.consume();
-                    token_type = TokenType::LessThanOrEquals;
+                    return Ok(Some(self.make_token(TokenType::LessThanOrEquals)));
                 }
                 else {
-                    token_type = TokenType::LessThan;
+                    return Ok(Some(self.make_token(TokenType::LessThan)));
                 }
             },
             '>' => 
@@ -273,17 +299,14 @@ impl Lexer
                 if self.peek(None) == Some('=') 
                 {
                     self.consume();
-                    token_type = TokenType::GreaterThanOrEquals;
+                    return Ok(Some(self.make_token(TokenType::GreaterThanOrEquals)));
                 }
                 else {
-                    token_type = TokenType::GreaterThan;
+                    return Ok(Some(self.make_token(TokenType::GreaterThan)));
                 }
-            },
-
+            }
             _ => return Ok(None)
         }
-
-        return Ok(Some(self.make_token(token_type)));
     }
 
     fn lex_number(&mut self, start_char: char) -> Result<TokenType, LexError>
@@ -308,61 +331,115 @@ impl Lexer
         }
 
         if is_float {
-            return TokenType::Float64Literal(num.parse().unwrap());
+            return Ok(TokenType::Float64Literal(num.parse().unwrap()));
         } 
 
-        return TokenType::Int64Literal(num.parse().unwrap());
+        return Ok(TokenType::Int64Literal(num.parse().unwrap()));
     }
 
-    fn lex_string(&mut self) -> TokenType
+    fn lex_string(&mut self) -> Result<TokenType, LexError>
     {
         let mut string = String::new();
 
-        while let Some(c) = self.peek(None) 
+        loop
         {
-            if c == '"' 
-            { 
-                self.consume(); 
-                break; 
+            match self.peek(None)
+            {
+                None => 
+                {
+                    return Err(LexError::StringParseError(
+                        format!("Unterminated string on line {}", self.current_line)
+                    ));
+                }
+                Some('"') => 
+                {
+                    self.consume(); // consume closing "
+                    break;
+                }
+                Some('\\') =>
+                {
+                    self.consume(); // consume backslash
+                    let escaped = self.parse_escape_sequence()?;
+                    string.push(escaped);
+                }
+                Some(c) =>
+                {
+                    string.push(c);
+                    self.consume();
+                }
             }
-
-            string.push(c);
-            self.consume();
         }
 
-        return TokenType::StringLiteral(string);
+        return Ok(TokenType::StringLiteral(string));
     }
 
-    fn lex_char(&mut self) -> TokenType
+    fn lex_char(&mut self) -> Result<TokenType, LexError>
     {
-        let mut c: char;
-
-        let read_char = || -> char 
+        let c = match self.peek(None)
         {
-            if let Some(c) = self.peek(None)
+            None => 
             {
-
+                return Err(LexError::CharacterParseError(
+                    format!("Unterminated char literal on line {}", self.current_line)
+                ));
             }
-            else 
+            Some('\\') =>
             {
-                eprintln!("");
-                return ' ';
+                self.consume(); // consume backslash
+                self.parse_escape_sequence()?
+            }
+            Some(c) =>
+            {
+                self.consume();
+                c
             }
         };
 
-        if let Some(c) = self.peek(None)
+        // Expect closing '
+        match self.peek(None)
         {
-            if c == '\\'
+            Some('\'') => { self.consume(); }
+            Some(c) => 
             {
-                self.consume();
-                read_char();
+                return Err(LexError::CharacterParseError(
+                    format!("Expected closing ' on line {} but got '{}'", self.current_line, c)
+                ));
             }
-            else {
-                read_char();
+            None => 
+            {
+                return Err(LexError::CharacterParseError(
+                    format!("Unterminated char literal on line {}", self.current_line)
+                ));
             }
         }
 
-        return TokenType::CharLiteral(c);
+        return Ok(TokenType::CharLiteral(c));
+    }
+
+    fn parse_escape_sequence(&mut self) -> Result<char, LexError>
+    {
+        match self.peek(None)
+        {
+            Some('n')  => { self.consume(); Ok('\n') }
+            Some('t')  => { self.consume(); Ok('\t') }
+            Some('r')  => { self.consume(); Ok('\r') }
+            Some('\\') => { self.consume(); Ok('\\') }
+            Some('\'') => { self.consume(); Ok('\'') }
+            Some('"')  => { self.consume(); Ok('"')  }
+            Some('0')  => { self.consume(); Ok('\0') }
+            Some(c) =>
+            {
+                Err(LexError::CharacterParseError(
+                    format!("Unknown escape sequence '\\{}' on line {}", c, self.current_line)
+                ))
+            }
+            None =>
+            {
+                Err(LexError::CharacterParseError(
+                    format!("Unexpected end of file after '\\' on line {}", self.current_line)
+                ))
+            }
+        }
     }
 
     fn lex_ident_or_keyword(&mut self, start_char: char) -> TokenType
@@ -394,6 +471,6 @@ impl Lexer
 
     fn make_token(&self, token_type: TokenType) -> Token 
     {
-        Token { token_type: token_type, line: self.current_line }
+        return Token { token_type: token_type, line: self.current_line }
     }
 }

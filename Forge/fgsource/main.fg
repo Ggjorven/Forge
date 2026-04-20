@@ -3,7 +3,7 @@ int32 main()
     ;
     'a'
     '\\'
-    '\c'
+    '\0'
     "abc"
     "abc\"def"
 }
