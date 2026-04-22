@@ -1,3 +1,4 @@
+use core::error;
 use std::fs;
 use std::path::Path;
 
@@ -10,11 +11,13 @@ use super::token::TokenType;
 #[derive(Debug, Clone, PartialEq)]
 pub enum LexError
 {
+    // String = message, u32 = current_line
+
     IOError(String),
-    CharacterParseError(String),
-    StringParseError(String),
-    IntegerParseError(String),
-    FloatParseError(String)
+    CharacterParseError(String, u32),
+    StringParseError(String, u32),
+    IntegerParseError(String, u32),
+    FloatParseError(String, u32)
 }
 
 /////////////////////////////////////////////////////
@@ -54,9 +57,10 @@ impl Lexer
         }
     }
 
-    pub fn get_tokens(mut self) -> Vec<Token>
+    pub fn get_tokens(mut self) -> (Vec<Token>, Vec<LexError>)
     {
         let mut tokens: Vec<Token> = Vec::new();
+        let mut errors: Vec<LexError> = Vec::new();
 
         while !self.is_at_end(None) 
         {
@@ -66,19 +70,22 @@ impl Lexer
             }
 
             let next = self.next_token();
-            if let Ok(op_token) = next 
+            match next
             {
-                if let Some(token) = op_token
+                Ok(op_token) => 
                 {
-                    tokens.push(token);
+                    if let Some(token) = op_token {
+                        tokens.push(token);
+                    }
                 }
-            } 
-            else if let Err(error) = next {
-                eprintln!("Failed to parse token with error: {:?}", error);
+                Err(error) =>
+                {
+                    errors.push(error);
+                }
             }
         }
 
-        return tokens;
+        return (tokens, errors);
     }
 
     /////////////////////////////////////////////////////
