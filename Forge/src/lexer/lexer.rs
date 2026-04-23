@@ -23,6 +23,7 @@ pub enum LexError
 /////////////////////////////////////////////////////
 // Lexer
 /////////////////////////////////////////////////////
+#[derive(Debug)]
 pub struct Lexer
 {
     source: Vec<char>,
@@ -350,7 +351,7 @@ impl Lexer
             {
                 None => 
                 {
-                    return Err(LexError::StringParseError(format!("Unterminated string on line {}", self.current_line)));
+                    return Err(LexError::StringParseError(format!("Unterminated string on line {}", self.current_line), self.current_line));
                 }
                 Some('"') => 
                 {
@@ -380,7 +381,7 @@ impl Lexer
         {
             None => 
             {
-                return Err(LexError::CharacterParseError(format!("Unterminated char literal on line {}", self.current_line)));
+                return Err(LexError::CharacterParseError(format!("Unterminated char literal on line {}", self.current_line), self.current_line));
             }
             Some('\\') =>
             {
@@ -399,11 +400,11 @@ impl Lexer
             Some('\'') => { self.consume(); }
             Some(c) => 
             {
-                return Err(LexError::CharacterParseError(format!("Expected closing ' on line {} but got '{}'", self.current_line, c)));
+                return Err(LexError::CharacterParseError(format!("Expected closing ' on line {} but got '{}'", self.current_line, c), self.current_line));
             }
             None => 
             {
-                return Err(LexError::CharacterParseError(format!("Unterminated char literal on line {}", self.current_line)));
+                return Err(LexError::CharacterParseError(format!("Unterminated char literal on line {}", self.current_line), self.current_line));
             }
         }
 
@@ -423,11 +424,11 @@ impl Lexer
             Some('0')  => { self.consume(); Ok('\0') }
             Some(c) =>
             {
-                return Err(LexError::CharacterParseError(format!("Unknown escape sequence '\\{}' on line {}", c, self.current_line)));
+                return Err(LexError::CharacterParseError(format!("Unknown escape sequence '\\{}' on line {}", c, self.current_line), self.current_line));
             }
             None =>
             {
-                return Err(LexError::CharacterParseError(format!("Unexpected end of file after '\\' on line {}", self.current_line)));
+                return Err(LexError::CharacterParseError(format!("Unexpected end of file after '\\' on line {}", self.current_line), self.current_line));
             }
         }
     }

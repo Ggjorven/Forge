@@ -1,3 +1,4 @@
+use core::error;
 use std::process::ExitCode;
 
 mod cli;
@@ -15,14 +16,23 @@ pub fn main() -> ExitCode
     {
         let lexer_result = lexer::Lexer::new(file.as_path());
 
-        if let Err(error) = lexer_result
+        if lexer_result.is_err()
         {
-            eprintln!("Failed to create lexer with error: {:?}", error);
+            let err = lexer_result.unwrap_err();
+
+            eprintln!("Failed to create lexer with error: {:?}", err);
             continue;
         }
-        else if let Ok(lexer_obj) = lexer_result
+        else
         {
-            let tokens = lexer_obj.get_tokens();
+            let tokens_and_errors = lexer_result.unwrap().get_tokens();
+            let tokens = tokens_and_errors.0;
+            let errors = tokens_and_errors.1;
+
+            for error in errors
+            {
+                eprintln!("{:?}", error);
+            }
 
             for token in &tokens
             {
