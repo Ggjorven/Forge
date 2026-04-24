@@ -1,9 +1,4 @@
 int32 main(int8 a, int32 c)
 {
-    ;
-    'a'
-    '\\'
-    '\0'
-    "abc"
-    "abc\"def"
+    int32 a = 1000;
 }

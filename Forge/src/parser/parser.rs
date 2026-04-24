@@ -2,8 +2,6 @@ use std::fmt::format;
 use std::fs;
 use std::path::Path;
 
-use crate::lexer::token;
-
 use super::super::lexer::Token;
 use super::super::lexer::TokenType;
 
@@ -11,7 +9,6 @@ use super::nodes::Type;
 use super::nodes::Expression;
 use super::nodes::BinaryOperator;
 use super::nodes::Statement;
-use super::nodes::Block;
 use super::nodes::Parameter;
 use super::nodes::FunctionDefinition;
 use super::nodes::Item;
@@ -23,7 +20,9 @@ use super::nodes::Item;
 pub enum ParseError
 {
     ExpectedType(String),
-    UnexpectedToken(String) // General error
+    ExpectedSemicolon(String),
+    UnexpectedToken(String), // General error
+    NoTokenFound(String)
 }
 
 /////////////////////////////////////////////////////
@@ -220,10 +219,23 @@ impl Parser
     fn parse_function(&mut self) -> Result<FunctionDefinition, ParseError>
     {
         expect_type_token!(self);
-        let return_type = self.consume();
+        let return_type_result = self.parse_type();
         
+        if return_type_result.is_err()
+        {
+            return Err(return_type_result.unwrap_err());
+        }
+
+        let return_type = return_type_result.unwrap();
+
         expect_token!(self, TokenType::Identifier(_));
-        let function_name = self.consume();
+        let function_name_token = self.consume();
+
+        let mut function_name: String = String::from("");
+        if let TokenType::Identifier(f_name) = function_name_token.token_type
+        {
+            function_name = f_name;
+        }
 
         expect_token!(self, TokenType::LeftParenthesis); 
         self.consume();
@@ -261,20 +273,17 @@ impl Parser
         expect_token!(self, TokenType::RightParenthesis); 
         self.consume();
 
-        println!("------");
-        println!("{:?}", &return_type);
-        println!("{:?}", &function_name);
+        expect_token!(self, TokenType::LeftBrace);
+        let body_result = self.parse_block();
 
-        for parameter in &parameters
+        if body_result.is_err()
         {
-            println!("{:?}", parameter);
+            return Err(body_result.unwrap_err());
         }
-
-        //let body = self.parse_block();
         
-        //FunctionDef { name, params, return_type, body }
+        let body = body_result.unwrap();
 
-        return Err(ParseError::UnexpectedToken(String::from("AAAA")));
+        return Ok(FunctionDefinition { name: function_name, parameters, return_type: return_type, body: body });
     }
 
     fn parse_type(&mut self) -> Result<Type, ParseError>
@@ -302,4 +311,214 @@ impl Parser
         }
     }
 
+    fn parse_block(&mut self) -> Result<Vec<Statement>, ParseError>
+    {
+        let mut statements: Vec<Statement> = Vec::new();
+
+        expect_token!(self, TokenType::LeftBrace);
+        self.consume();
+        while !self.check(TokenType::RightBrace) && !self.is_at_end(None) 
+        {
+            let statement_result = self.parse_statement();
+
+            if statement_result.is_err()
+            {
+                return Err(statement_result.unwrap_err());
+            }
+            
+            statements.push(statement_result.unwrap());
+        }
+        expect_token!(self, TokenType::RightBrace);
+        self.consume();
+
+        return Ok(statements);
+    }
+
+    fn parse_statement(&mut self) -> Result<Statement, ParseError> 
+    {
+        match self.peek(None) 
+        {
+            Some(token) =>
+            {
+                match token.token_type
+                {
+                    // TokenType::Let | // FUTURE TODO: Add when there is implicit type conversion
+                    TokenType::Void |
+                    TokenType::Bool |
+                    TokenType::Char |
+                    TokenType::Int8 | TokenType::Int16 | TokenType::Int32 | TokenType::Int64 |
+                    TokenType::UInt8 | TokenType::UInt16 | TokenType::UInt32 | TokenType::UInt64 |
+                    TokenType::Float32 | TokenType::Float64 |
+                    TokenType::String
+                    => 
+                    {
+                        let let_result = self.parse_let();
+
+                        if let_result.is_err()
+                        {
+                            return Err(let_result.unwrap_err());
+                        }
+                        
+                        return Ok(let_result.unwrap());
+                    },
+                    TokenType::Return => 
+                    {
+                        let return_result = self.parse_return();
+
+                        if return_result.is_err()
+                        {
+                            return Err(return_result.unwrap_err());
+                        }
+                        
+                        return Ok(return_result.unwrap());
+                    },
+                    _ => 
+                    { 
+                        let expression_result = self.parse_expression();
+
+                        if expression_result.is_err()
+                        {
+                            return Err(expression_result.unwrap_err());
+                        }
+                        
+                        return Ok(Statement::Expression(expression_result.unwrap()));
+                    }
+                }
+            }
+            None => 
+            {
+                return Err(ParseError::NoTokenFound(String::from("Expected to parse statement, but no token found.")));
+            }
+        }
+    }
+
+    fn parse_let(&mut self) -> Result<Statement, ParseError> 
+    {
+        // FUTURE TODO: Allow let keyword and implicit type 
+        expect_type_token!(self);
+        let type_result = self.parse_type();
+
+        if type_result.is_err()
+        {
+            return Err(type_result.unwrap_err());
+        }
+
+        let let_type = type_result.unwrap();
+
+        expect_token!(self, TokenType::Identifier(_));
+        let name_token = self.consume();
+
+        let mut variable_name: String = String::from("");
+        if let TokenType::Identifier(name) = name_token.token_type
+        {
+            variable_name = name;
+        }
+
+        expect_token!(self, TokenType::Equals);
+        self.consume();
+
+        // FUTURE TODO: Allow non-initialized variable
+        let initializer_result = self.parse_expression();
+
+        if initializer_result.is_err()
+        {
+            return Err(initializer_result.unwrap_err());
+        }
+
+        expect_token!(self, TokenType::Semicolon);
+        self.consume();
+
+        return Ok(Statement::Variable { name: variable_name, variable_type: let_type, initializer: Some(initializer_result.unwrap()) });
+    }
+
+    fn parse_return(&mut self) -> Result<Statement, ParseError>  
+    {
+        expect_token!(self, TokenType::Return);
+        self.consume();
+
+        let expression_result = self.parse_expression();
+
+        if expression_result.is_err()
+        {
+            return Err(expression_result.unwrap_err());
+        }
+
+        expect_token!(self, TokenType::Semicolon);
+        self.consume();
+
+        return Ok(Statement::Return(expression_result.unwrap()));
+    }
+
+    fn parse_expression(&mut self) -> Result<Expression, ParseError> 
+    {
+        // TODO: implement Pratt parsing / precedence climbing here
+        return self.parse_primary();
+    }
+
+    fn parse_primary(&mut self) -> Result<Expression, ParseError> 
+    {
+        let token = self.consume();
+
+        match token.token_type 
+        {
+            // FUTURE TODO: Different sizes and unsigned
+            TokenType::Int64Literal(n) => return Ok(Expression::IntegerLiteral(n)),
+            TokenType::Float64Literal(f) => return Ok(Expression::FloatLiteral(f)),
+            TokenType::StringLiteral(s) => return Ok(Expression::StringLiteral(s)),
+            TokenType::True => return Ok(Expression::BooleanLiteral(true)),
+            TokenType::False => return Ok(Expression::BooleanLiteral(false)),
+            TokenType::Identifier(name) => 
+            {
+                // Could be a call:  name(args)
+                if self.check(TokenType::LeftParenthesis) 
+                {
+                    self.consume();
+
+                    let args_result = self.parse_call_args();
+                    
+                    if args_result.is_err()
+                    {
+                        return Err(args_result.unwrap_err());
+                    }
+
+                    expect_token!(self, TokenType::RightParenthesis);
+                    self.consume();
+
+                    return Ok(Expression::Call { callee: name, arguments: args_result.unwrap() });
+                } 
+                else 
+                {
+                    return Ok(Expression::Identifier(name));
+                }
+            }
+            _ => return Err(ParseError::UnexpectedToken(format!("Unexpected token {:?} at line {}.", token.token_type, token.line)))
+        }
+    }
+
+    fn parse_call_args(&mut self) -> Result<Vec<Expression>, ParseError> 
+    {
+        let mut args = Vec::new();
+
+        if self.check(TokenType::RightParenthesis) 
+        {
+            return Ok(args);
+        }
+
+        loop 
+        {
+            let arg_result = self.parse_expression();
+                    
+            if arg_result.is_err()
+            {
+                return Err(arg_result.unwrap_err());
+            }
+
+            args.push(arg_result.unwrap());
+
+            if !self.check(TokenType::Comma) { break; }
+            self.consume();
+        }
+
+        return Ok(args);
+    }
 }

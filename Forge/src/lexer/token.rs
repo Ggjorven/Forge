@@ -11,7 +11,7 @@ pub enum TokenType
     StringLiteral(String),
 
     // Keywords
-    Let,
+    // Let,                  // FUTURE TODO: Add when there is implicit type conversion
     Return,
     True,
     False,

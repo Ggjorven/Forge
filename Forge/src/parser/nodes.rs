@@ -70,12 +70,6 @@ pub enum Statement
     // FUTURE TODO: If, While, For, etc.
 }
 
-#[derive(Debug)]
-pub struct Block 
-{
-    pub statements: Vec<Statement>,
-}
-
 /////////////////////////////////////////////////////
 // Function related
 /////////////////////////////////////////////////////
@@ -92,7 +86,7 @@ pub struct FunctionDefinition
     pub name: String,
     pub parameters: Vec<Parameter>,
     pub return_type: Type,
-    pub body: Block,
+    pub body: Vec<Statement>,
 }
 
 /////////////////////////////////////////////////////

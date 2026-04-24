@@ -452,7 +452,7 @@ impl Lexer
         match identifier.as_str() 
         {
             // Keywords
-            "let"    => return TokenType::Let,
+            // "let"    => return TokenType::Let, // FUTURE TODO: Add when there is implicit type conversion
             "return" => return TokenType::Return,
             "true"   => return TokenType::True,
             "false"  => return TokenType::False,
