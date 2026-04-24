@@ -15,18 +15,6 @@ pub enum Type
 }
 
 /////////////////////////////////////////////////////
-// Item
-/////////////////////////////////////////////////////
-#[derive(Debug)]
-pub enum Item
-{
-    Function(FunctionDefinition),
-    // FUTURE TODO: Struct(EnumDef),
-    // FUTURE TODO: Class(ClassDef),
-    // FUTURE TODO: Struct(StructDef),
-}
-
-/////////////////////////////////////////////////////
 // Expression related
 /////////////////////////////////////////////////////
 #[derive(Debug)]
@@ -103,4 +91,16 @@ pub struct FunctionDefinition
     pub parameters: Vec<Parameter>,
     pub return_type: Type,
     pub body: Block,
+}
+
+/////////////////////////////////////////////////////
+// Item
+/////////////////////////////////////////////////////
+#[derive(Debug)]
+pub enum Item
+{
+    Function(FunctionDefinition),
+    // FUTURE TODO: Enum(EnumDef),
+    // FUTURE TODO: Class(ClassDef),
+    // FUTURE TODO: Struct(StructDef),
 }
