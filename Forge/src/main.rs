@@ -25,10 +25,8 @@ pub fn main() -> ExitCode
 
         if lexer_result.is_err()
         {
-            let err = lexer_result.unwrap_err();
-
-            eprintln!("Failed to create lexer with error: {:?}", err);
-            continue;
+            eprintln!("Failed to lex file `{}` with error: {:?}", file.to_str().unwrap_or("<UNKNOWN FILE>"), lexer_result.unwrap_err());
+            return ExitCode::FAILURE;
         }
         else
         {
@@ -36,6 +34,7 @@ pub fn main() -> ExitCode
             let tokens = tokens_and_errors.0;
             let errors = tokens_and_errors.1;
 
+            // Handle errors
             for error in &errors
             {
                 eprintln!("{:?}", error);
@@ -45,10 +44,13 @@ pub fn main() -> ExitCode
                 return ExitCode::FAILURE;
             }
 
+            // Debug print
             for token in &tokens
             {
                 println!("{:?}", token);
             }
+
+            // Create AST
         }
     }
 

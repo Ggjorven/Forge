@@ -1,8 +1,6 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use crate::cli;
-
 use super::arguments::CliOption;
 
 /////////////////////////////////////////////////////
@@ -15,6 +13,15 @@ pub enum CliError
     UnknownOption(String),
     UnsupportedPlatform(String)
 }
+
+/////////////////////////////////////////////////////
+// SupportedCliValues
+/////////////////////////////////////////////////////
+//#[derive(Debug, Clone)]
+//pub struct SupportedCliValues
+//{
+//
+//}
 
 /////////////////////////////////////////////////////
 // CompilerOptions
