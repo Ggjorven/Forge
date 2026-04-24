@@ -65,7 +65,7 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<CompilerOptions,
                             options.output = PathBuf::from(flag_value);
                             
                             // Skip the next value
-                            i = i + 1;
+                            i += 1;
                         }
                     }
                     _ => 
@@ -87,7 +87,7 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<CompilerOptions,
             }
         }
 
-        i = i + 1;
+        i += 1;
     }
 
     return Ok(options);
