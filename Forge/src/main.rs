@@ -1,7 +1,9 @@
 use std::process::ExitCode;
 
 mod cli;
+
 mod lexer;
+mod parser;
 
 /////////////////////////////////////////////////////
 // Main function

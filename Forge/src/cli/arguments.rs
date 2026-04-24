@@ -11,13 +11,13 @@ pub enum CliOption
     Option(String, String)
 }
 
-// impl PartialEq for CliOption 
-// {
-//     fn eq(&self, other: &Self) -> bool 
-//     {
-//         std::mem::discriminant(self) == std::mem::discriminant(other)
-//     }
-// }
+impl PartialEq for CliOption 
+{
+    fn eq(&self, other: &Self) -> bool 
+    {
+        return std::mem::discriminant(self) == std::mem::discriminant(other);
+    }
+}
 
 /////////////////////////////////////////////////////
 // Parse functions
