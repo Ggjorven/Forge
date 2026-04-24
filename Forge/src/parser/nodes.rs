@@ -6,6 +6,7 @@ pub enum Type
 {
     Void,
     Bool,
+    Char,
     Int8, Int16, Int32, Int64,
     UInt8, UInt16, UInt32, UInt64,
     Float32, Float64,
@@ -21,13 +22,14 @@ pub enum Type
 pub enum Expression
 {
     BooleanLiteral(bool),
-    IntLiteral(i64),        // FUTURE TODO: Different integer sizes and unsigned
+    CharLiteral(char),
+    IntegerLiteral(i64),    // FUTURE TODO: Different integer sizes and unsigned
     FloatLiteral(f64),      // FUTURE TODO: Different integer sizes and unsigned
-    
     StringLiteral(String),
+    
     Identifier(String),
 
-    BinaryOp {
+    BinaryOperator {
         operator: BinaryOperator,
         left: Box<Expression>,
         right: Box<Expression>,

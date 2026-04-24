@@ -1,6 +1,4 @@
-int32 {}
-
-int32 main()
+int32 main(int8 a, int32 c)
 {
     ;
     'a'

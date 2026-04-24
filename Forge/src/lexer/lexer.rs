@@ -153,10 +153,10 @@ impl Lexer
             }
         }
 
-        // Keywords & identifiers
+        // Keywords, Types & identifiers
         if c.is_alphabetic() || c == '_' 
         {
-            let result_type = self.lex_ident_or_keyword(c);
+            let result_type = self.lex_keyword_types_and_identifiers(c);
             return Ok(Some(self.make_token(result_type)));
         }
 
@@ -432,7 +432,7 @@ impl Lexer
         }
     }
 
-    fn lex_ident_or_keyword(&mut self, start_char: char) -> TokenType
+    fn lex_keyword_types_and_identifiers(&mut self, start_char: char) -> TokenType
     {
         let mut identifier = String::from(start_char);
 
@@ -451,10 +451,29 @@ impl Lexer
         // Keywords — match the string, fall back to Ident
         match identifier.as_str() 
         {
+            // Keywords
             "let"    => return TokenType::Let,
             "return" => return TokenType::Return,
             "true"   => return TokenType::True,
             "false"  => return TokenType::False,
+
+            // Types
+            "void" => return TokenType::Void,
+            "bool" => return TokenType::Bool,
+            "char" => return TokenType::Char,
+            "int8" => return TokenType::Int8,
+            "int16" => return TokenType::Int16,
+            "int32" => return TokenType::Int32,
+            "int64" => return TokenType::Int64,
+            "uint8" => return TokenType::UInt8,
+            "uint16" => return TokenType::UInt16,
+            "uint32" => return TokenType::UInt32,
+            "uint64" => return TokenType::UInt64,
+            "float32" => return TokenType::Float32,
+            "float64" => return TokenType::Float64,
+            "string" => return TokenType::String,
+
+            // Identifier
             _        => return TokenType::Identifier(identifier),
         }
     }

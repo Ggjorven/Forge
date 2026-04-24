@@ -16,7 +16,14 @@ pub enum TokenType
     True,
     False,
 
-    // Identifiers
+    // Types & Identifier
+    Void,
+    Bool,
+    Char,
+    Int8, Int16, Int32, Int64,
+    UInt8, UInt16, UInt32, UInt64,
+    Float32, Float64,
+    String,
     Identifier(String),
 
     // Punctuation
@@ -43,7 +50,7 @@ pub enum TokenType
 /////////////////////////////////////////////////////
 // Token
 /////////////////////////////////////////////////////
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token
 {
     pub token_type: TokenType,
