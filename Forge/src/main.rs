@@ -53,6 +53,26 @@ pub fn main() -> ExitCode
             }
 
             // Create AST
+            let parser = parser::Parser::new(tokens);
+            let items_and_errors = parser.get_items();
+            let items = items_and_errors.0;
+            let errors = items_and_errors.1;
+
+            // Handle errors
+            for error in &errors
+            {
+                eprintln!("{:?}", error);
+            }
+            if !errors.is_empty()
+            {
+                return ExitCode::FAILURE;
+            }
+
+            // Debug print
+            for item in &items
+            {
+                println!("{:?}", item);
+            }
         }
     }
 

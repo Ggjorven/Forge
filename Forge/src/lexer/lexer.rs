@@ -132,9 +132,9 @@ impl Lexer
 
     fn consume(&mut self) -> char
     {
-        let c = self.source[self.current_char]; // No need to clone, since char is a Copy type.
+        let c = self.source.get(self.current_char).unwrap_or_else(|| { panic!("Internal logic error, consuming a char that doesn't exist."); });
         self.current_char += 1;
-        return c;
+        return *c; // char is a Copy type so this is fine.
     }
 
     fn next_token(&mut self) -> Result<Option<Token>, LexError>
