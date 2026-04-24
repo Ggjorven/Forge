@@ -104,10 +104,3 @@ pub struct FunctionDefinition
     pub return_type: Type,
     pub body: Block,
 }
-
-#[derive(Debug)]
-pub struct Param 
-{
-    pub name: String,
-    pub ty:   Type,
-}
