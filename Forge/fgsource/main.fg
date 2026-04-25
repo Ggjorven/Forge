@@ -1,3 +1,8 @@
+int8 a(int32 c)
+{
+
+}
+
 int32 main(int8 a, int32 c)
 {
     int32 a = 1000;

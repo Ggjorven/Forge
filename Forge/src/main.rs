@@ -32,14 +32,22 @@ pub fn main() -> ExitCode
         }
         else
         {
-            let tokens_and_errors = lexer_result.unwrap().get_tokens();
+            let mut lexer = lexer_result.unwrap();
+            let tokens_and_errors = lexer.get_tokens();
             let tokens = tokens_and_errors.0;
             let errors = tokens_and_errors.1;
 
             // Handle errors
             for error in &errors
             {
-                eprintln!("{:?}", error);
+                match error
+                {
+                    lexer::LexError::IOError(message) => { eprintln!("{}", message);},
+                    lexer::LexError::CharacterParseError(message, line) => { cli::error(file.as_path(), &lexer.source_lines, *line, message); },
+                    lexer::LexError::StringParseError(message, line) => { cli::error(file.as_path(), &lexer.source_lines, *line, message); },
+                    lexer::LexError::IntegerParseError(message, line) => {cli::error(file.as_path(), &lexer.source_lines, *line, message); },
+                    lexer::LexError::FloatParseError(message, line) => { cli::error(file.as_path(), &lexer.source_lines, *line, message); },
+                }
             }
             if !errors.is_empty()
             {
@@ -61,7 +69,13 @@ pub fn main() -> ExitCode
             // Handle errors
             for error in &errors
             {
-                eprintln!("{:?}", error);
+                match error
+                {
+                    parser::ParseError::ExpectedType(message, line) => { cli::error(file.as_path(), &lexer.source_lines, *line, message); },
+                    parser::ParseError::ExpectedSemicolon(message, line) => { cli::error(file.as_path(), &lexer.source_lines, *line, message); },
+                    parser::ParseError::UnexpectedToken(message, line) => { cli::error(file.as_path(), &lexer.source_lines, *line, message); },
+                    parser::ParseError::NoTokenFound(message, line) => { cli::error(file.as_path(), &lexer.source_lines, *line, message); },
+                }
             }
             if !errors.is_empty()
             {

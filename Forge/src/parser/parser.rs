@@ -1,4 +1,3 @@
-use std::fmt::format;
 use std::fs;
 use std::path::Path;
 
@@ -19,10 +18,12 @@ use super::nodes::Item;
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError
 {
-    ExpectedType(String),
-    ExpectedSemicolon(String),
-    UnexpectedToken(String), // General error
-    NoTokenFound(String)
+    // String = message, u32 = current_line
+
+    ExpectedType(String, u32),
+    ExpectedSemicolon(String, u32),
+    UnexpectedToken(String, u32), // General error
+    NoTokenFound(String, u32)
 }
 
 /////////////////////////////////////////////////////
@@ -39,16 +40,18 @@ macro_rules! expect_token
 {
     ($self:ident, $($pattern:pat),+) => 
     {
-        if let Some(value) = $self.peek(None) 
+        if let Some(value) = $self.peek(None).cloned()
         {
             if !matches!(value.token_type, $($pattern)|+) 
             {
-                return Err(ParseError::UnexpectedToken(format!("Expected one of `{}` but found '{:?}'.", stringify!($($pattern),+), &value.token_type)));
+                $self.consume();
+                return Err(ParseError::UnexpectedToken(format!("Expected one of `{}` but found '{:?}'.", stringify!($($pattern),+), &value.token_type), value.line));
             }
         } 
         else
         {
-            return Err(ParseError::UnexpectedToken(format!("Expected one of `{}` but found None.", stringify!($($pattern),+))));
+            $self.consume();
+            return Err(ParseError::UnexpectedToken(format!("Expected one of `{}` but found None.", stringify!($($pattern),+)), 0)); // TODO: Replace 0 with actual line number
         }
     };
 }
@@ -99,9 +102,7 @@ impl Parser
                 }
                 Err(error) =>
                 {
-                    eprintln!("{:?}", error); // TODO: Remove
                     errors.push(error);
-                    std::thread::sleep(std::time::Duration::from_millis(1000));
                 }
             }
         }
@@ -178,7 +179,7 @@ impl Parser
 
     fn parse_item(&mut self) -> Result<Item, ParseError> 
     {
-        match self.peek(None)
+        match self.peek(None).cloned()
         {
             Some(token) => 
             {
@@ -205,7 +206,8 @@ impl Parser
                     }
                     _ => 
                     {
-                        return Err(ParseError::UnexpectedToken(format!("Unexpected token found ({:?})", token)));
+                        self.consume();
+                        return Err(ParseError::UnexpectedToken(format!("Unexpected token found ({:?})", token), token.line));
                     }
                 }
             }
@@ -307,7 +309,7 @@ impl Parser
             TokenType::Float64                        => return Ok(Type::Float64),
             TokenType::String                         => return Ok(Type::String),
             TokenType::Identifier(identifier) => return Ok(Type::Named(identifier)), 
-            _ => return Err(ParseError::ExpectedType(format!("Expected a type token.")))
+            _ => return Err(ParseError::ExpectedType(format!("Expected a type token."), token.line))
         }
     }
 
@@ -387,7 +389,7 @@ impl Parser
             }
             None => 
             {
-                return Err(ParseError::NoTokenFound(String::from("Expected to parse statement, but no token found.")));
+                return Err(ParseError::NoTokenFound(String::from("Expected to parse statement, but no token found."), 0)); // TODO: Replace 0 with a line number
             }
         }
     }
@@ -491,7 +493,7 @@ impl Parser
                     return Ok(Expression::Identifier(name));
                 }
             }
-            _ => return Err(ParseError::UnexpectedToken(format!("Unexpected token {:?} at line {}.", token.token_type, token.line)))
+            _ => return Err(ParseError::UnexpectedToken(format!("Unexpected token {:?} at line {}.", token.token_type, token.line), token.line))
         }
     }
 

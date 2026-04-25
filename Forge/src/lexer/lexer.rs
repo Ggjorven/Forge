@@ -25,7 +25,8 @@ pub enum LexError
 #[derive(Debug)]
 pub struct Lexer
 {
-    source: Vec<char>,
+    source_chars: Vec<char>,
+    pub source_lines: Vec<String>,
 
     current_char: usize,
     current_line: u32
@@ -44,7 +45,8 @@ impl Lexer
         {
             Ok(string) => {
                 return Ok(Self {
-                    source: string.chars().collect(),
+                    source_chars: string.chars().collect(),
+                    source_lines: string.lines().map(|a| -> String { return a.to_string(); }).collect(),
 
                     current_char: 0,
                     current_line: 1
@@ -57,7 +59,7 @@ impl Lexer
         }
     }
 
-    pub fn get_tokens(mut self) -> (Vec<Token>, Vec<LexError>)
+    pub fn get_tokens(&mut self) -> (Vec<Token>, Vec<LexError>)
     {
         let mut tokens: Vec<Token> = Vec::new();
         let mut errors: Vec<LexError> = Vec::new();
@@ -94,7 +96,7 @@ impl Lexer
     fn is_at_end(&self, char_to_check_or_current_char: Option<usize>) -> bool
     {
         let c: usize = char_to_check_or_current_char.unwrap_or(self.current_char);
-        return c >= self.source.len();
+        return c >= self.source_chars.len();
     }
 
     fn skip_whitespace(&mut self)
@@ -121,18 +123,18 @@ impl Lexer
     fn peek(&self, offset: Option<usize>) -> Option<char>
     {
         let index: usize = self.current_char + offset.unwrap_or(0);
-        // return self.source.get(index).copied();
+        // return self.source_chars.get(index).copied();
 
         if self.is_at_end(Some(index)) {
             return None;
         }
 
-        return Some(self.source[index]); // No need to clone, since char is a Copy type.
+        return Some(self.source_chars[index]); // No need to clone, since char is a Copy type.
     }
 
     fn consume(&mut self) -> char
     {
-        let c = self.source.get(self.current_char).unwrap_or_else(|| { panic!("Internal logic error, consuming a char that doesn't exist."); });
+        let c = self.source_chars.get(self.current_char).unwrap_or_else(|| { panic!("Internal logic error, consuming a char that doesn't exist."); });
         self.current_char += 1;
         return *c; // char is a Copy type so this is fine.
     }
