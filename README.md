@@ -12,7 +12,7 @@ The goal is to explore what a language looks and feels like when you cherry-pick
 
 ## Goals
 
-- [ ] Lexer / Tokenizer
+- [x] Lexer / Tokenizer
 - [ ] Parser & AST
 - [ ] Type system
 - [ ] Code generation (LLVM or custom IR)
